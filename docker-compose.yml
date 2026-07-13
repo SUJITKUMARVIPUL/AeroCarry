@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # --- 1. INFRASTRUCTURE ---
+  mysql-server:
+    image: mysql:8.0
+    container_name: mysql-server
+    environment:
+      MYSQL_ROOT_PASSWORD: root  # Change if you want a different DB password
+    ports:
+      - "3306:3306"
+    networks:
+      - aerocarry-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - aerocarry-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - aerocarry-network
+
+  # --- 2. DISCOVERY & GATEWAY ---
+  eureka-server:
+    image: sujitkumarvipul/aerocarry-eureka-server:latest
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - aerocarry-network
+
+  api-gateway:
+    image: sujitkumarvipul/aerocarry-api-gateway:latest
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eureka-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - aerocarry-network
+
+  # --- 3. MICROSERVICES ---
+  userservice:
+    image: sujitkumarvipul/aerocarry-userservice:latest
+    container_name: userservice
+    depends_on:
+      - mysql-server
+      - eureka-server
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/user_db_aerocarry?createDatabaseIfNotExist=true&useSSL=false
+      - SPRING_DATASOURCE_PASSWORD=root
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - aerocarry-network
+
+  productservice:
+    image: sujitkumarvipul/aerocarry-productservice:latest
+    container_name: productservice
+    depends_on:
+      - mysql-server
+      - eureka-server
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/product_db_aerocarry?createDatabaseIfNotExist=true&useSSL=false
+      - SPRING_DATASOURCE_PASSWORD=root
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - aerocarry-network
+
+  order-service:
+    image: sujitkumarvipul/aerocarry-order-service:latest
+    container_name: order-service
+    depends_on:
+      - mysql-server
+      - eureka-server
+      - kafka
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/order_db_aerocarry?createDatabaseIfNotExist=true&useSSL=false
+      - SPRING_DATASOURCE_PASSWORD=root
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - aerocarry-network
+
+  payment-service:
+    image: sujitkumarvipul/aerocarry-payment-service:latest
+    container_name: payment-service
+    depends_on:
+      - mysql-server
+      - eureka-server
+      - kafka
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-server:3306/payment_db_aerocarry?createDatabaseIfNotExist=true&useSSL=false
+      - SPRING_DATASOURCE_PASSWORD=root
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - aerocarry-network
+
+networks:
+  aerocarry-network:
+    driver: bridge
