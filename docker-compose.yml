@@ -37,7 +37,7 @@ services:
 
   # --- 2. DISCOVERY & GATEWAY ---
   eureka-server:
-    image: sujitkumarvipul/aerocarry-eureka-server:latest
+    image: sujitkumarvipul/aerocarry-eurekaserver:latest
     container_name: eureka-server
     ports:
       - "8761:8761"
