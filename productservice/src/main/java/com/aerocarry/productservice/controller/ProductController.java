@@ -20,4 +20,9 @@ public class ProductController {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
+    @GetMapping
+    public String testProduct(){
+        return "test";
+    }
+
 }
