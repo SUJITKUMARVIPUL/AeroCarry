@@ -20,7 +20,7 @@ public class ProductController {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
-    @GetMapping
+    @GetMapping("/test")
     public String testProduct(){
         return "test";
     }
